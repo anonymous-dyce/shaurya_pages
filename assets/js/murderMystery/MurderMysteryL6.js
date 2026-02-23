@@ -3,109 +3,77 @@ import Player from '/assets/js/GameEnginev1/essentials/Player.js';
 import Npc from '/assets/js/GameEnginev1/essentials/Npc.js';
 import DialogueSystem from '/assets/js/GameEnginev1/DialogueSystem.js';
 
-class MurderMysteryL1 {
-  static friendlyName = "Level 1: The Docks";
+class MurderMysteryBossFight {
+  static friendlyName = "Level 6: Boss Fight";
   constructor(gameEnv) {
     let width = gameEnv.innerWidth;
     let height = gameEnv.innerHeight;
     let path = gameEnv.path;
 
-    const image_background = path + "/images/murderMystery/murderMysteryLevel1.png"; // be sure to include the path
+    const image_background = path + "/assets/images/murderMystery/bossMap.png"; // be sure to include the path
     const image_data_background = {
         name: 'background',
-        greeting: "You know understand the situation you are in. Navigate to the island for your first task.",
+        greeting: "Your fate has been sealed. Go avenge your fallen comrades.",
         src: image_background,
         pixels: {height: 580, width: 1038},
         mode: 'contain',
     };
 
-    const musicPath = path + "/images/murderMystery/level1_music.wav";
-    this.levelMusic = new Audio(musicPath);
-    this.levelMusic.loop = true;
-    this.levelMusic.volume = 0.4;
-
-    // 2. Debugging logs to see if the file is actually found
-    this.levelMusic.oncanplaythrough = () => console.log("🎵 Music file loaded successfully!");
-    this.levelMusic.onerror = () => console.error("❌ Audio Error! Check if file exists at:", musicPath);
-
-    // 3. Robust Interaction Handler
-    const startAudio = () => {
-        this.levelMusic.play()
-            .then(() => {
-                console.log("▶️ Music started!");
-                // Remove listeners only after music actually starts
-                window.removeEventListener('keydown', startAudio);
-                window.removeEventListener('mousedown', startAudio);
-                window.removeEventListener('touchstart', startAudio);
-            })
-            .catch(err => {
-                // This catches the "Blocked" error and lets us try again on the next click/key
-                console.warn("User must interact with the game (click or move) to start music.");
-            });
-    };
-
-    // Listen for anything the user does
-    window.addEventListener('keydown', startAudio);
-    window.addEventListener('mousedown', startAudio);
-    window.addEventListener('touchstart', startAudio);
-
-
-    const sprite_data_boat = {
-        id: 'Boat',
-        src: path + "/images/murderMystery/archie_boat.png", // A simple boat sprite
-        SCALE_FACTOR: 5,
-        STEP_FACTOR: 1000, // Same speed as Archie
+      const sprite_data_archie = {
+        id: 'Archie',
+        src: path + "/images/murderMystery/archie_left.png",
+        SCALE_FACTOR: 4,
+        STEP_FACTOR: 1000,
         ANIMATION_RATE: 0,
-        INIT_POSITION: { x: 250, y: 350 }, // Positioned slightly under Archie
-        pixels: { height: 200, width: 150}, // Adjust based on your boat image size
-        orientation: { rows: 1, columns: 1 },
-        down: { row: 0, start: 0, columns: 1 },
+        INIT_POSITION: { x: 250, y: 350 },
+        pixels: {height: 150, width: 100},
+        orientation: {rows: 1, columns: 1},
+        down: {row: 0, start: 0, columns: 1},
         downRight: {row: 0, start: 0, columns: 1},
         downLeft: {row: 0, start: 0, columns: 1},
-        left: { row: 0, start: 0, columns: 1 },
-        right: { row: 0, start: 0, columns: 1 },
-        up: { row: 0, start: 0, columns: 1 },
+        left: {row: 0, start: 0, columns: 1},
+        right: {row: 0, start: 0, columns: 1},
+        up: {row: 0, start: 0, columns: 1},
         upLeft: {row: 0, start: 0, columns: 1},
         upRight: {row: 0, start: 0, columns: 1},
-        hitbox: { widthPercentage: 0.3, heightPercentage: 0.3},
-        keypress: { left: 65, right: 68, up: 87, down: 83 } // Same keys as Archie
-   };
+        hitbox: {widthPercentage: 0.5, heightPercentage: 0.5},
+        keypress: {left: 65, right:68, up: 87, down: 83} // A, D, W, S
+    };
 
-   // Suspect sprite should be visible on island
-   // Make it so that the suspect sprite is shown on the island, and when the boat reached the island coordinate of the background
-   // the suspect sprite will show up and have a dialogue interaction with the player
-   // The suspect will say "Who goes there? I thought I was alone on this island". 
-   // The suspect should be positioned away from the boat's initial position, so that the player has to navigate around the island to find them.
-
-   const sprite_data_suspect = {
-    id: 'Suspect 1',
-    src: path + "/images/mansionGame/skeleton_key.png", // placeholder sprite
+   const sprite_data_boss = {
+    id: 'Boss',
+    src: path + "/assets/images/murderMystery/boss.png", // placeholder sprite
     SCALE_FACTOR: 15,
     STEP_FACTOR: 1000,
     ANIMATION_RATE: 0,
-    // Position the suspect on the island, away from the boat 
     INIT_POSITION: { x: 1300, y: 300 }, 
     pixels: { height: 200, width: 200 },
     orientation: { rows: 1, columns: 1 },
     down: { row: 0, start: 0, columns: 1 },
-    greeting: "Hey! Who are you? Press E to interact with me. ",
-    dialogues: ["Who goes there? I thought I was alone on this island...",
-        "Where was I? I've been stranded here for days after the storm hit.",
-        "My crew left me behind when I fell overboard. I barely made it to shore.",
-        "I've been trying to survive on fish and coconuts ever since.",
-        "If something happened on the ship, I wouldn't know. I've been here the whole time."
+    greeting: "Well, well well. Press E to interact with me. ",
+    dialogues: [
+        { speaker: 'Archie', text: "I have recieved this sword. It is the only thing capable of slaying him." },
+        { speaker: 'Boss', text: "From the shadows, I emerge. Your fate has been sealed." },
+        { speaker: 'Archie', text: "I won't stand for this injustice! You will pay for your crimes." },
+        { speaker: 'Boss', text: "Foolish hero... You think that blade can stop me? I will crush you and everything you protect!" },
+        { speaker: 'Archie', text: "*With a swift motion, you raise the sword and strike. The blade cuts through darkness itself.*" },
+        { speaker: 'Boss', text: "No... this cannot be... I am eternal..." },
+        { speaker: 'Archie', text: "You will harm us no more, you monster." },
     ],
     
         interact: function() {
         if (!this.dialogueSystem || !this.spriteData.dialogues) return;
         
         const dialogues = this.spriteData.dialogues;
-        const npcName = this.spriteData?.id || "Suspect";
-        const npcAvatar = this.spriteData?.src || null;
+        const bossAvatar = this.spriteData?.src || null;
+        const archieAvatar = path + "/images/murderMystery/archie_left.png";
         
         // Show current dialogue
-        const currentDialogue = dialogues[this.currentQuestionIndex];
-        this.dialogueSystem.showDialogue(currentDialogue, npcName, npcAvatar);
+        const currentDialogueData = dialogues[this.currentQuestionIndex];
+        const speaker = currentDialogueData.speaker || "Character";
+        const avatar = speaker === 'Archie' ? archieAvatar : bossAvatar;
+        
+        this.dialogueSystem.showDialogue(currentDialogueData.text, speaker, avatar);
         this.currentQuestionIndex++;
         
         // Add custom handler for advancing dialogue
@@ -121,8 +89,11 @@ class MurderMysteryL1 {
                         this.currentQuestionIndex = 0;
                     } else {
                         // Show next line
-                        const nextDialogue = dialogues[this.currentQuestionIndex];
-                        this.dialogueSystem.showDialogue(nextDialogue, npcName, npcAvatar);
+                        const nextData = dialogues[this.currentQuestionIndex];
+                        const nextSpeaker = nextData.speaker || "Character";
+                        const nextAvatar = nextSpeaker === 'Archie' ? archieAvatar : bossAvatar;
+                        
+                        this.dialogueSystem.showDialogue(nextData.text, nextSpeaker, nextAvatar);
                         this.currentQuestionIndex++;
                     }
                 }
@@ -138,97 +109,11 @@ class MurderMysteryL1 {
       typewriterSpeed: 35
     });
 
-    // Boss Battle Dialogue Sequence Functions
-    const startFinalBattle = () => {
-      storyDialogue.showDialogue(
-        "A dark presence emerges from the shadows... The Boss stands before you.",
-        "Narrator"
-      );
-
-      storyDialogue.addButtons([
-        {
-          text: "Continue",
-          primary: true,
-          action: () => giveSword()
-        }
-      ]);
-    };
-
-    const giveSword = () => {
-      storyDialogue.showDialogue(
-        "Take this sword. It is the only weapon capable of defeating him. Good luck.",
-        "Narrator"
-      );
-
-      storyDialogue.addButtons([
-        {
-          text: "Face the Boss",
-          primary: true,
-          action: () => bossSpeech()
-        }
-      ]);
-    };
-
-    const bossSpeech = () => {
-      storyDialogue.showDialogue(
-        "Foolish hero... You think that blade can stop me? I will crush you and everything you protect!",
-        "Boss"
-      );
-
-      storyDialogue.addButtons([
-        {
-          text: "Attack",
-          primary: true,
-          action: () => bossFightNarration()
-        }
-      ]);
-    };
-
-    const bossFightNarration = () => {
-      storyDialogue.showDialogue(
-        "With a swift motion, you raise the sword and strike. The blade cuts through darkness itself.",
-        "Narrator"
-      );
-
-      storyDialogue.addButtons([
-        {
-          text: "Finish Him",
-          primary: true,
-          action: () => bossDies()
-        }
-      ]);
-    };
-
-    const bossDies = () => {
-      storyDialogue.showDialogue(
-        "No... this cannot be... I am eternal...",
-        "Boss"
-      );
-
-      storyDialogue.addButtons([
-        {
-          text: "Continue",
-          primary: true,
-          action: () => endGame()
-        }
-      ]);
-    };
-
-    const endGame = () => {
-      storyDialogue.showDialogue(
-        "The darkness fades. Peace returns to the land.\n\nThe End.",
-        "Narrator"
-      );
-    };
-
     this.classes = [
             { class: GameEnvBackground, data: image_data_background },
-            { class: Player, data: sprite_data_boat },   // Boat spawns first
-            { class: Npc, data: sprite_data_suspect }
+            { class: Npc, data: sprite_data_boss }
     ];
 
-    // Store the startFinalBattle function as a class method for later use
-    this.startFinalBattle = startFinalBattle;
   }
 
   // Method to trigger the boss battle from game events
@@ -239,4 +124,4 @@ class MurderMysteryL1 {
   }
 }
 
-export default MurderMysteryL1;
+export default MurderMysteryBossFight;
