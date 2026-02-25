@@ -4,6 +4,13 @@ title: Murder Mystery Game
 permalink: /gamify/murderMystery
 ---
 
+<style>
+/* Page-specific override: undo site-wide black background for game container/canvas */
+#gameContainer, #gameCanvas { background: transparent !important; }
+#gameContainer { background-color: transparent !important; }
+#gameCanvas { background-color: transparent !important; display: block; }
+</style>
+
 <div id="gameContainer">
     <div id="promptDropDown" class="promptDropDown" style="z-index: 9999"></div>
     <canvas id='gameCanvas'></canvas>
