@@ -48,7 +48,7 @@ class MurderMysteryBossFight {
         SCALE_FACTOR:1.25,
         STEP_FACTOR: 1000,
         ANIMATION_RATE: 0,
-        INIT_POSITION: { x: 650, y: 50 }, 
+        INIT_POSITION: { x: 700, y: 60 }, 
         pixels: { height: 1024, width: 1024 },
         orientation: { rows: 1, columns: 1 },
         down: { row: 0, start: 0, columns: 1 },
