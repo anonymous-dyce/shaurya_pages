@@ -53,13 +53,12 @@ class MurderMysteryBossFight {
         down: { row: 0, start: 0, columns: 1 },
     greeting: "Well played \"hero\". Press E to fight me if you dare!",
     dialogues: [
-        { speaker: 'Archie', text: "I have received this sword. It is the only thing capable of slaying you." },
-        { speaker: 'Boss', text: "From the shadows, I emerge. Your fate has been sealed." },
-        { speaker: 'Archie', text: "I won't stand for this injustice! You will pay for your crimes!" },
-        { speaker: 'Boss', text: "Foolish hero... You think that blade can stop me? I will crush you and everything you protect!" },
-        { speaker: 'Archie', text: "*With a swift motion, you raise the sword and strike. The blade cuts through darkness itself.*" },
-        { speaker: 'Boss', text: "No... this cannot be... I am eternal..." },
-        { speaker: 'Archie', text: "You will harm us no more, you monster." }
+        { speaker: 'Archie', text: "I won't let you harm me! You will pay for your crimes!" },
+        { speaker: 'Archie', text: "I have received this sword! It is the only thing capable of slaying you." },
+        { speaker: 'Boss', text: "Foolish hero, you think that flimsy sword can stop me?" },
+        { speaker: 'Archie', text: "*With a swift motion, the hero raises the sword and strikes.*" },
+        { speaker: 'Boss', text: "No...how could this be?" },
+        { speaker: 'Archie', text: "You will harm us no more, you monster!" }
     ],
     
         interact: function() {
