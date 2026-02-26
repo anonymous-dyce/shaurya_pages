@@ -59,15 +59,37 @@ active_tab: calendar
 <script type="module">
     import { javaURI, fetchOptions } from '{{site.baseurl}}/assets/js/api/config.js';
 
-    // Auth-aware response handler: checks for 401 or redirect-to-login
-    // and navigates the user to the login page when their session has expired.
+    // ── Calendar-specific fetch options ──────────────────────────────
+    // The Java backend returns 302 → /login when unauthenticated, but
+    // the /login page does NOT include CORS headers.  With the default
+    // redirect:'follow' the browser follows the 302, hits /login, sees
+    // no Access-Control-Allow-Credentials header, and throws a CORS
+    // TypeError — which means handleAuthError never gets a response.
+    //
+    // redirect:'manual' stops the browser from following the 302 so we
+    // receive an opaqueredirect (type:'opaqueredirect', status:0) that
+    // we can detect and handle gracefully.
+    const calendarFetchOptions = { ...fetchOptions, redirect: 'manual' };
+
+    // Auth-aware response handler: checks for opaque redirect (302→login
+    // blocked by manual redirect), 401, 403, or followed redirects.
     function handleAuthError(response) {
-        if (response.status === 401 || response.status === 403 ||
-            (response.redirected && response.url.includes('/login'))) {
-            console.warn('Session expired or not authenticated — redirecting to login');
+        // redirect:'manual' turns a 302 into an opaqueredirect (status 0)
+        if (response.type === 'opaqueredirect' || response.status === 0) {
+            console.warn('Not authenticated (redirect intercepted) — please log in');
+            return true; // signal auth failure, but don't alert/redirect (user just isn't logged in)
+        }
+        if (response.status === 401 || response.status === 403) {
+            console.warn('Session expired or not authenticated (HTTP ' + response.status + ')');
             alert('Your session has expired. Please log in again.');
             window.location.href = '{{site.baseurl}}/login';
-            return true; // signal that auth failed
+            return true;
+        }
+        if (response.redirected && response.url.includes('/login')) {
+            console.warn('Session expired — redirected to login');
+            alert('Your session has expired. Please log in again.');
+            window.location.href = '{{site.baseurl}}/login';
+            return true;
         }
         return false; // no auth issue
     }
@@ -108,7 +130,7 @@ active_tab: calendar
     async function fetchUserGroups() {
         try {
             // First get the current user's person ID
-            const personResponse = await fetch(`${javaURI}/api/person/get`, fetchOptions);
+            const personResponse = await fetch(`${javaURI}/api/person/get`, calendarFetchOptions);
             if (handleAuthError(personResponse)) return [];
             if (!personResponse.ok) {
                 console.warn('Could not fetch user info, user may not be logged in');
@@ -123,12 +145,12 @@ active_tab: calendar
             }
 
             // Then fetch groups for this person
-            const groupsResponse = await fetch(`${javaURI}/api/groups/person/${currentPersonId}`, fetchOptions);
+            const groupsResponse = await fetch(`${javaURI}/api/groups/person/${currentPersonId}`, calendarFetchOptions);
             if (handleAuthError(groupsResponse)) return [];
             if (!groupsResponse.ok) {
                 // Fallback: try fetching all groups and filter
                 console.warn('Person groups endpoint not available, using fallback');
-                const fallbackResponse = await fetch(`${javaURI}/api/groups`, fetchOptions);
+                const fallbackResponse = await fetch(`${javaURI}/api/groups`, calendarFetchOptions);
                 if (!fallbackResponse.ok) return [];
                 const allGroups = await fallbackResponse.json();
                 // Filter to only groups this user is a member of
@@ -211,7 +233,7 @@ active_tab: calendar
             return (breakEvent.extendedProps && breakEvent.extendedProps.breakName) || breakEvent.breakName || breakEvent.title || null;
         }
         function request() {
-            return fetch(`${javaURI}/api/calendar/events`, fetchOptions)
+            return fetch(`${javaURI}/api/calendar/events`, calendarFetchOptions)
                 .then(response => {
                     if (handleAuthError(response)) return null;
                     if (response.status !== 200) {
@@ -227,7 +249,7 @@ active_tab: calendar
         }
         // getAssignments removed - assignments are no longer fetched here
         function getBreaks() {
-            return fetch(`${javaURI}/api/calendar/breaks`, fetchOptions)
+            return fetch(`${javaURI}/api/calendar/breaks`, calendarFetchOptions)
                 .then(response => {
                     if (handleAuthError(response)) return [];
                     if (!response.ok) {
@@ -577,7 +599,7 @@ active_tab: calendar
                         displayCalendar(filterEventsByClass(currentFilter)); // Refresh calendar
                         document.getElementById("eventModal").style.display = "none";
                         fetch(`${javaURI}/api/calendar/add_event`, {
-                            ...fetchOptions,
+                            ...calendarFetchOptions,
                             method: "POST",
                             body: JSON.stringify(newEventPayload),
                         })
@@ -722,7 +744,7 @@ active_tab: calendar
                     description: updatedDescription
                 };                
                 fetch(`${javaURI}/api/calendar/breaks/${id}`, {
-                    ...fetchOptions,
+                    ...calendarFetchOptions,
                     method: "PUT",
                     body: JSON.stringify(breakPayload),
                 })
@@ -759,7 +781,7 @@ active_tab: calendar
                         priority: updatedPriority
                     }; 
                     fetch(`${javaURI}/api/calendar/add_event`, {
-                        ...fetchOptions,
+                        ...calendarFetchOptions,
                         method: "POST",
                         body: JSON.stringify(newEventPayload),
                     })
@@ -792,7 +814,7 @@ active_tab: calendar
                     };
                     const id = currentEvent.id;
                     fetch(`${javaURI}/api/calendar/update_event/${id}`, {
-                        ...fetchOptions,
+                        ...calendarFetchOptions,
                         method: "PUT",
                         body: JSON.stringify(payload),
                     })
@@ -841,7 +863,7 @@ active_tab: calendar
             if (!confirmation) return;
             const endpoint = isBreak ? `${javaURI}/api/calendar/breaks/${id}` : `${javaURI}/api/calendar/delete_event/${id}`;
             fetch(endpoint, {
-                ...fetchOptions,
+                ...calendarFetchOptions,
                 method: "DELETE"
             })
             .then(response => {
@@ -893,7 +915,7 @@ active_tab: calendar
             };
             console.log("Sending break payload:", breakPayload);
             fetch(`${javaURI}/api/calendar/breaks/create`, {
-                ...fetchOptions,
+                ...calendarFetchOptions,
                 method: "POST",
                 body: JSON.stringify(breakPayload),
             })
