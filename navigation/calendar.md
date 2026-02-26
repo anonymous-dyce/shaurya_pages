@@ -58,6 +58,20 @@ active_tab: calendar
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.0/main.min.js"></script>
 <script type="module">
     import { javaURI, fetchOptions } from '{{site.baseurl}}/assets/js/api/config.js';
+
+    // Auth-aware response handler: checks for 401 or redirect-to-login
+    // and navigates the user to the login page when their session has expired.
+    function handleAuthError(response) {
+        if (response.status === 401 || response.status === 403 ||
+            (response.redirected && response.url.includes('/login'))) {
+            console.warn('Session expired or not authenticated — redirecting to login');
+            alert('Your session has expired. Please log in again.');
+            window.location.href = '{{site.baseurl}}/login';
+            return true; // signal that auth failed
+        }
+        return false; // no auth issue
+    }
+
     let allEvents = []; // Global array to store all events
     let currentFilter = null; // Track the current filter
     let showAppointments = true; // Toggle for Course View (false) vs All View (true)
@@ -95,6 +109,7 @@ active_tab: calendar
         try {
             // First get the current user's person ID
             const personResponse = await fetch(`${javaURI}/api/person/get`, fetchOptions);
+            if (handleAuthError(personResponse)) return [];
             if (!personResponse.ok) {
                 console.warn('Could not fetch user info, user may not be logged in');
                 return [];
@@ -109,6 +124,7 @@ active_tab: calendar
 
             // Then fetch groups for this person
             const groupsResponse = await fetch(`${javaURI}/api/groups/person/${currentPersonId}`, fetchOptions);
+            if (handleAuthError(groupsResponse)) return [];
             if (!groupsResponse.ok) {
                 // Fallback: try fetching all groups and filter
                 console.warn('Person groups endpoint not available, using fallback');
@@ -197,6 +213,7 @@ active_tab: calendar
         function request() {
             return fetch(`${javaURI}/api/calendar/events`, fetchOptions)
                 .then(response => {
+                    if (handleAuthError(response)) return null;
                     if (response.status !== 200) {
                         console.error("HTTP status code: " + response.status);
                         return null;
@@ -210,18 +227,11 @@ active_tab: calendar
         }
         // getAssignments removed - assignments are no longer fetched here
         function getBreaks() {
-            // Try primary endpoint, then fallback to trailing slash if 404 (some servers require it)
             return fetch(`${javaURI}/api/calendar/breaks`, fetchOptions)
                 .then(response => {
-                    if (response.status === 404) {
-                        console.warn('Breaks endpoint returned 404, retrying with trailing slash');
-                        return fetch(`${javaURI}/api/calendar/breaks/`, fetchOptions);
-                    }
-                    return response;
-                })
-                .then(response => {
-                    if (!response || response.status !== 200) {
-                        console.error("HTTP status code for breaks: " + (response && response.status));
+                    if (handleAuthError(response)) return [];
+                    if (!response.ok) {
+                        console.error("HTTP status code for breaks: " + response.status);
                         return [];
                     }
                     return response.json();
@@ -360,6 +370,11 @@ active_tab: calendar
                     });
 
                     displayCalendar(filterEventsByClass(currentFilter)); // Display filtered events
+                })
+                .catch(error => {
+                    console.error("handleRequest error:", error);
+                    // Still render the calendar with whatever events we have (holidays at minimum)
+                    displayCalendar(filterEventsByClass(currentFilter));
                 });
         }
         function displayCalendar(events) {
@@ -472,7 +487,8 @@ active_tab: calendar
                 },
                 dateClick: function (info) {
                     // Login required to create events
-                    if (!window.user || !window.user.uid) {
+                    // window.user is set by login.js; currentPersonId is set by fetchUserGroups
+                    if ((!window.user || !window.user.uid) && !currentPersonId) {
                         alert('You must be logged in to create events. Please log in and try again.');
                         return;
                     }
@@ -566,12 +582,14 @@ active_tab: calendar
                             body: JSON.stringify(newEventPayload),
                         })
                         .then(response => {
+                            if (handleAuthError(response)) return;
                             if (!response.ok) {
                                 throw new Error(`Failed to add new event: ${response.status} ${response.statusText}`);
                             }
                             return response.json();
                         })
-                        .then(() => {
+                        .then((data) => {
+                            if (!data) return; // auth redirect happened
                             // Re-fetch events from the backend to ensure the calendar is up-to-date
                             handleRequest();
                             document.getElementById("eventModal").style.display = "none";
@@ -668,7 +686,6 @@ active_tab: calendar
         }
         document.getElementById("closeModal").onclick = function () {
             document.getElementById('editDateDisplay').style.display = 'block';
-            document.getElementById('editDateDisplay').style.display = 'block';
             document.getElementById('editDate').style.display = 'none';
             document.getElementById("saveButton").style.display = "none";
             document.getElementById("eventModal").style.display = "none";
@@ -678,7 +695,6 @@ active_tab: calendar
             document.getElementById("editEventType").disabled = true;
             document.getElementById("editClassPeriod").disabled = true;
             document.getElementById("editGroupName").disabled = true;
-            document.getElementById("eventModal").style.display = "none";
         };
         document.getElementById("saveButton").onclick = function () {
             const isBreak = document.getElementById("eventModal").dataset.isBreak === "true";
@@ -711,12 +727,14 @@ active_tab: calendar
                     body: JSON.stringify(breakPayload),
                 })
                 .then(response => {
+                    if (handleAuthError(response)) return;
                     if (!response.ok) {
                         throw new Error(`Failed to update break: ${response.status} ${response.statusText}`);
                     }
                     return response.json();
                 })
-                .then(() => {
+                .then((data) => {
+                    if (!data) return; // auth redirect happened
                     document.getElementById("eventModal").style.display = "none";
                     handleRequest();
                 })
@@ -746,12 +764,14 @@ active_tab: calendar
                         body: JSON.stringify(newEventPayload),
                     })
                     .then(response => {
+                        if (handleAuthError(response)) return;
                         if (!response.ok) {
                             throw new Error(`Failed to add new event: ${response.status} ${response.statusText}`);
                         }
                         return response.json();
                     })
-                    .then(() => {
+                    .then((data) => {
+                        if (!data) return; // auth redirect happened
                         document.getElementById("eventModal").style.display = "none";
                         handleRequest();
                     })
@@ -771,18 +791,20 @@ active_tab: calendar
                         individual: currentEvent.extendedProps?.individual || ''
                     };
                     const id = currentEvent.id;
-                    fetch(`${javaURI}/api/calendar/edit/${id}`, {
+                    fetch(`${javaURI}/api/calendar/update_event/${id}`, {
                         ...fetchOptions,
                         method: "PUT",
                         body: JSON.stringify(payload),
                     })
                     .then(response => {
+                        if (handleAuthError(response)) return;
                         if (!response.ok) {
                             throw new Error(`Failed to update event: ${response.status} ${response.statusText}`);
                         }
                         return response.text();
                     })
-                    .then(() => {
+                    .then((data) => {
+                        if (data === undefined) return; // auth redirect happened
                         document.getElementById("eventModal").style.display = "none";
                         handleRequest();
                     })
@@ -817,18 +839,20 @@ active_tab: calendar
             const id = currentEvent.id;
             const confirmation = confirm(`Are you sure you want to delete "${currentEvent.title}"?`);
             if (!confirmation) return;
-            const endpoint = isBreak ? `${javaURI}/api/calendar/breaks/${id}` : `${javaURI}/api/calendar/delete/${id}`;
+            const endpoint = isBreak ? `${javaURI}/api/calendar/breaks/${id}` : `${javaURI}/api/calendar/delete_event/${id}`;
             fetch(endpoint, {
                 ...fetchOptions,
                 method: "DELETE"
             })
             .then(response => {
+                if (handleAuthError(response)) return;
                 if (!response.ok) {
                     throw new Error(`Failed to delete: ${response.status} ${response.statusText}`);
                 }
                 return response.text();
             })
-            .then(() => {
+            .then((data) => {
+                if (data === undefined) return; // auth redirect happened
                 currentEvent.remove();
                 document.getElementById("eventModal").style.display = "none";
                 handleRequest();
@@ -874,6 +898,7 @@ active_tab: calendar
                 body: JSON.stringify(breakPayload),
             })
             .then(response => {
+                if (handleAuthError(response)) return;
                 if (!response.ok) {
                     return response.text().then(text => {
                         throw new Error(`Failed to create break: ${response.status} ${response.statusText} - ${text}`);
@@ -882,6 +907,7 @@ active_tab: calendar
                 return response.json();
             })
             .then((result) => {
+                if (!result) return; // auth redirect happened
                 console.log("Break creation response:", result);
                 alert("Break day created successfully. Events on this day have been moved to the next non-break day.");
                 document.getElementById("eventModal").style.display = "none";
@@ -914,7 +940,6 @@ active_tab: calendar
             document.getElementById('editDateDisplay').style.display = 'block';
             document.getElementById('editDate').style.display = 'none';
             document.getElementById("saveButton").style.display = "none";
-            document.getElementById("eventModal").style.display = "none";
             document.getElementById("editTitle").contentEditable = false;
             document.getElementById("editDescription").contentEditable = false;
             document.getElementById("editPriority").disabled = true;
